@@ -18,4 +18,6 @@ data = $db2.execute(sql)
 end
 
 test()
-closedb2
+closedb2()
+structure = getstubjson("DT160760")
+puts structure

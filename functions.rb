@@ -1,40 +1,31 @@
+require 'rubygems'
+require 'net/http'
 require 'oci8'
 require 'rdbi-driver-odbc' 
 require 'net/ssh'
 require 'json'
 require_relative 'db-connection'
 
-## The function below will execute a command on the remote SSH server and then capture all responses.
-def ssh_exec!(ssh, command)
-  stdout_data = ""
-  stderr_data = ""
-  exit_code = nil
-  exit_signal = nil
-  ssh.open_channel do |channel|
-    channel.exec(command) do |ch, success|
-      unless success
-        abort "FAILED: couldn't execute command (ssh.channel.exec)"
-      end
-      channel.on_data do |ch,data|
-        stdout_data+=data
-      end
+#These are web service call passwords that can be set or default to ''
+$http_auth_name = (ENV['HTTPAUTH_USERNAME'] || '')
+$http_auth_password = (ENV['HTTPAUTH_PASSWORD'] || '')
 
-      channel.on_extended_data do |ch,type,data|
-        stderr_data+=data
-      end
-
-      channel.on_request("exit-status") do |ch,data|
-        exit_code = data.read_long
-      end
-
-      channel.on_request("exit-signal") do |ch, data|
-        exit_signal = data.read_long
-      end
-    end
+#List of URLs to access its defaulted but then possible to export a different address so it points to the cloud instead
+$STUBJSON = (ENV['http://localhost:4567'] || '')
+$STUBJSON = 'http://localhost:4567/'
+#This function gets the json object
+def getstubjson(title_number)
+  uri = URI.parse($STUBJSON)
+  http = Net::HTTP.new(uri.host, uri.port)
+  request = Net::HTTP::Get.new('/' + title_number)
+  request.basic_auth $http_auth_name, $http_auth_password
+  response = http.request(request)
+  if (response.code != '200') then
+    raise "Error in getting JSON for: " + title_number
   end
-  ssh.loop
-  [stdout_data, stderr_data, exit_code, exit_signal]
+  return response.body
 end
+
 
 ##takes in sql and replaces the DB prefix and returns the sql
 def fixSQL(sql) 
